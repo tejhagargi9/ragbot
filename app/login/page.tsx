@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../../lib/firebase";
+import { createSessionCookie } from "../../lib/auth";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
@@ -24,7 +25,9 @@ export default function LoginPage() {
     setError("");
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // Create session cookie for 2 hours
+      await createSessionCookie(userCredential.user);
       // Success - redirect to dashboard or home
       router.push("/");
     } catch (error) {
@@ -41,7 +44,9 @@ export default function LoginPage() {
 
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const userCredential = await signInWithPopup(auth, provider);
+      // Create session cookie for 2 hours
+      await createSessionCookie(userCredential.user);
       // Success - redirect to dashboard or home
       router.push("/");
     } catch (error) {

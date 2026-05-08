@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../../lib/firebase";
+import { createSessionCookie } from "../../lib/auth";
 import { useRouter } from "next/navigation";
 
 export default function SignupPage() {
@@ -28,9 +29,11 @@ export default function SignupPage() {
     setError("");
 
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      // Success - redirect to login or dashboard
-      router.push("/login");
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      // Create session cookie for 2 hours
+      await createSessionCookie(userCredential.user);
+      // Success - redirect to dashboard or home
+      router.push("/");
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to create account";
       setError(errorMessage);
@@ -45,7 +48,9 @@ export default function SignupPage() {
 
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const userCredential = await signInWithPopup(auth, provider);
+      // Create session cookie for 2 hours
+      await createSessionCookie(userCredential.user);
       // Success - redirect to dashboard or home
       router.push("/");
     } catch (error) {

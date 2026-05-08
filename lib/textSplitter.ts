@@ -1,5 +1,5 @@
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
-import { Document } from "@langchain/document";
+import { Document } from "@langchain/core/documents";
 
 export async function splitDocuments(docs: Document[]) {
   if (!docs || docs.length === 0) {
