@@ -32,7 +32,16 @@ function TypingBubble() {
 }
 
 // Individual chat message
-function ChatMessage({ message }) {
+interface ChatMessageProps {
+  message: {
+    id: number;
+    role: "user" | "assistant";
+    content: string;
+    time: string;
+  };
+}
+
+function ChatMessage({ message }: ChatMessageProps) {
   const isUser = message.role === "user";
 
   return (
@@ -97,7 +106,9 @@ export default function ChatPage() {
 
   // Auto-scroll to bottom on new message or typing indicator
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages, isTyping]);
 
   const sendMessage = async () => {
@@ -131,10 +142,10 @@ export default function ChatPage() {
         }),
       });
 
-      const data = await response.json();
-      const replyText =
-        data?.content?.find((b) => b.type === "text")?.text ||
-        "Sorry, I couldn't process that. Please try again.";
+       const data = await response.json();
+       const replyText =
+         data?.content?.find((b: { type: string; text: string }) => b.type === "text")?.text ||
+         "Sorry, I couldn't process that. Please try again.";
 
       const assistantMsg = {
         id: Date.now() + 1,
@@ -156,7 +167,9 @@ export default function ChatPage() {
       ]);
     } finally {
       setIsTyping(false);
-      inputRef.current?.focus();
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
     }
   };
 

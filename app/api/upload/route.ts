@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { PineconeStore } from "@langchain/pinecone";
+import { admin, db } from "../../../lib/firebaseAdmin";
 
 export const runtime = 'nodejs';
 
@@ -16,10 +17,40 @@ import crypto from "crypto";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
+async function getUserEmailFromToken(request: Request): Promise<string | null> {
+  try {
+    const cookies = request.headers.get('cookie')?.split(';') || [];
+    let sessionToken = null;
+
+    for (const cookie of cookies) {
+      const [name, value] = cookie.trim().split('=');
+      if (name === 'session') {
+        sessionToken = value;
+        break;
+      }
+    }
+
+    if (!sessionToken) {
+      return null;
+    }
+
+    const decodedToken = await admin.auth().verifyIdToken(sessionToken);
+    return decodedToken.email || null;
+  } catch (error) {
+    console.error('Error verifying token:', error);
+    return null;
+  }
+}
+
 export async function POST(request: Request) {
   let tempFilePath: string | null = null;
 
   try {
+    // Get user email from session token
+    const userEmail = await getUserEmailFromToken(request);
+    if (!userEmail) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const formData = await request.formData();
     const file = formData.get("pdf") as File | null;
 
@@ -89,6 +120,19 @@ export async function POST(request: Request) {
     console.log('Inserting documents into vector store...');
     await PineconeStore.fromDocuments(documents, embeddings, { pineconeIndex, namespace });
     console.log('Vector store insertion completed successfully');
+
+    // Store namespace in Firestore clients collection
+    try {
+      const clientRef = db.collection('clients').doc(userEmail);
+      await clientRef.set({
+        namespaces: admin.firestore.FieldValue.arrayUnion(namespace),
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+      console.log(`Namespace ${namespace} stored in Firestore for user ${userEmail}`);
+    } catch (firestoreError) {
+      console.error('Error storing namespace in Firestore:', firestoreError);
+      // Don't fail the entire upload if Firestore fails
+    }
 
     return NextResponse.json({
       success: true,

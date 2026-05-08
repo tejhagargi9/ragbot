@@ -6,9 +6,9 @@ export async function createSessionCookie(user: User): Promise<void> {
     // Get the ID token
     const idToken = await user.getIdToken();
 
-    // Set cookie with 2-hour expiry
+    // Set cookie with 1-hour expiry (matching Firebase ID token lifetime)
     const expiryDate = new Date();
-    expiryDate.setTime(expiryDate.getTime() + (2 * 60 * 60 * 1000)); // 2 hours
+    expiryDate.setTime(expiryDate.getTime() + (60 * 60 * 1000)); // 1 hour
 
     document.cookie = `session=${idToken}; expires=${expiryDate.toUTCString()}; path=/; secure; samesite=strict`;
   } catch (error) {
