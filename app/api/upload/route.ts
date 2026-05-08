@@ -82,9 +82,13 @@ export async function POST(request: Request) {
 
     const pineconeIndex = getPineconeIndex();
 
+    // Test embedding generation with first document
     await embeddings.embedQuery(documents[0].pageContent);
 
+    // Insert documents into Pinecone vector store
+    console.log('Inserting documents into vector store...');
     await PineconeStore.fromDocuments(documents, embeddings, { pineconeIndex, namespace });
+    console.log('Vector store insertion completed successfully');
 
     return NextResponse.json({
       success: true,
