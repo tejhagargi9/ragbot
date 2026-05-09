@@ -41,6 +41,8 @@ interface ChatMessageProps {
   };
 }
 
+type ChatMessageType = ChatMessageProps['message'];
+
 function ChatMessage({ message }: ChatMessageProps) {
   const isUser = message.role === "user";
 
@@ -87,7 +89,7 @@ function ChatMessage({ message }: ChatMessageProps) {
   );
 }
 
-const INITIAL_MESSAGES = [
+const INITIAL_MESSAGES: ChatMessageType[] = [
   {
     id: 1,
     role: "assistant",
@@ -98,11 +100,11 @@ const INITIAL_MESSAGES = [
 ];
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  const [messages, setMessages] = useState<ChatMessageType[]>(INITIAL_MESSAGES);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const bottomRef = useRef(null);
-  const inputRef = useRef(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-scroll to bottom on new message or typing indicator
   useEffect(() => {
@@ -115,9 +117,11 @@ export default function ChatPage() {
     const text = input.trim();
     if (!text || isTyping) return;
 
-    const userMsg = {
+    console.log(`[Chat Component] Sending message: ${text.substring(0, 100)}...`);
+
+    const userMsg: ChatMessageType = {
       id: Date.now(),
-      role: "user",
+      role: "user" as const,
       content: text,
       time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
@@ -127,14 +131,10 @@ export default function ChatPage() {
     setIsTyping(true);
 
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system:
-            "You are a helpful Ticket Support Agent. Help users resolve their support issues concisely and clearly.",
           messages: [
             ...messages.map((m) => ({ role: m.role, content: m.content })),
             { role: "user", content: text },
@@ -142,12 +142,20 @@ export default function ChatPage() {
         }),
       });
 
-       const data = await response.json();
-       const replyText =
-         data?.content?.find((b: { type: string; text: string }) => b.type === "text")?.text ||
-         "Sorry, I couldn't process that. Please try again.";
+      console.log(`[Chat Component] API response status: ${response.status}`);
 
-      const assistantMsg = {
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const replyText =
+        data?.content?.find((b: { type: string; text: string }) => b.type === "text")?.text ||
+        "Sorry, I couldn't process that. Please try again.";
+
+      console.log(`[Chat Component] Received reply: ${replyText.substring(0, 100)}...`);
+
+      const assistantMsg: ChatMessageType = {
         id: Date.now() + 1,
         role: "assistant",
         content: replyText,
@@ -155,12 +163,13 @@ export default function ChatPage() {
       };
 
       setMessages((prev) => [...prev, assistantMsg]);
-    } catch {
+    } catch (error) {
+      console.error("[Chat Component] Error sending message:", error);
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now() + 1,
-          role: "assistant",
+          role: "assistant" as const,
           content: "Something went wrong. Please try again.",
           time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
@@ -173,7 +182,7 @@ export default function ChatPage() {
     }
   };
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
@@ -260,9 +269,10 @@ export default function ChatPage() {
                 rows={1}
                 className="flex-1 bg-transparent resize-none text-sm text-slate-800 placeholder-slate-400 outline-none py-1 max-h-36 leading-relaxed"
                 style={{ scrollbarWidth: "none" }}
-                onInput={(e) => {
-                  e.target.style.height = "auto";
-                  e.target.style.height = Math.min(e.target.scrollHeight, 144) + "px";
+                onInput={(e: React.FormEvent<HTMLTextAreaElement>) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = "auto";
+                  target.style.height = Math.min(target.scrollHeight, 144) + "px";
                 }}
               />
 
