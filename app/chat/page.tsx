@@ -149,11 +149,21 @@ export default function ChatPage() {
       }
 
       const data = await response.json();
-      const replyText =
+      let replyText =
         data?.content?.find((b: { type: string; text: string }) => b.type === "text")?.text ||
         "Sorry, I couldn't process that. Please try again.";
 
       console.log(`[Chat Component] Received reply: ${replyText.substring(0, 100)}...`);
+
+      // Format ticket responses nicely
+      try {
+        const parsed = JSON.parse(replyText);
+        if (parsed.id && typeof parsed.id === 'string' && parsed.id.startsWith('TKT-')) {
+          replyText = `🎫 **Ticket Created!**\n\n**ID:** ${parsed.id}\n**Subject:** ${parsed.subject}\n**Issue:** ${parsed.issue}\n**Priority:** ${parsed.priority}\n**Status:** ${parsed.status}\n**Category:** ${parsed.category}\n**Created:** ${new Date(parsed.createdAt).toLocaleString()}`;
+        }
+      } catch (e) {
+        // Not a ticket JSON, use as is
+      }
 
       const assistantMsg: ChatMessageType = {
         id: Date.now() + 1,

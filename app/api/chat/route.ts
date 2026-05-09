@@ -66,9 +66,31 @@ export async function POST(req: NextRequest) {
     ];
 
     const llmResponse = await chatModel.invoke(allMessages);
-    const replyText = llmResponse.content as string;
+    let replyText = llmResponse.content as string;
 
     console.log(`[Chat API] LLM response length: ${replyText.length}`);
+
+    // If response is a ticket JSON, set accurate createdAt and store in Firestore
+    try {
+      const parsed = JSON.parse(replyText);
+      if (parsed.id && typeof parsed.id === 'string' && parsed.id.startsWith('TKT-')) {
+        parsed.createdAt = new Date().toISOString();
+        parsed.email = userEmail; // Add email to ticket
+
+        // Store ticket in user's Firestore document
+        const userRef = db.collection('clients').doc(userEmail);
+        await userRef.update({
+          tickets: admin.firestore.FieldValue.arrayUnion(parsed)
+        });
+
+        console.log(`[Chat API] Stored ticket ${parsed.id} for user: ${userEmail}`);
+        console.log("[Chat API] Updated ticket createdAt timestamp");
+
+        replyText = JSON.stringify(parsed, null, 2);
+      }
+    } catch (e) {
+      // Not JSON, use as is
+    }
 
     // Normalize response to match Anthropic format for client compatibility
     const data = {

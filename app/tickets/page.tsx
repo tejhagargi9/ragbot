@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type Priority = "critical" | "high" | "medium" | "low";
 type Status = "open" | "in-progress" | "resolved" | "closed";
@@ -16,88 +16,7 @@ interface Ticket {
   category: string;
 }
 
-const TICKETS: Ticket[] = [
-  {
-    id: "TKT-0041",
-    email: "priya.sharma@techcorp.in",
-    subject: "Login page throwing 500 error",
-    issue: "Users are unable to log in since the last deployment. The login page returns a 500 Internal Server Error after submitting credentials. This is affecting all users in the production environment.",
-    priority: "critical",
-    status: "open",
-    createdAt: "2026-05-09T08:14:00Z",
-    category: "Bug",
-  },
-  {
-    id: "TKT-0040",
-    email: "arjun.mehta@startup.io",
-    subject: "Payment gateway not processing INR",
-    issue: "Transactions in Indian Rupees are being declined at checkout. The same cards work fine for USD payments. Issue started on May 7th after the currency config update.",
-    priority: "critical",
-    status: "in-progress",
-    createdAt: "2026-05-08T19:45:00Z",
-    category: "Payments",
-  },
-  {
-    id: "TKT-0039",
-    email: "nisha.rao@enterprise.com",
-    subject: "CSV export includes deleted records",
-    issue: "When exporting user data to CSV, soft-deleted records are incorrectly included in the output. The filter for 'active only' does not seem to be applied during the export job.",
-    priority: "high",
-    status: "open",
-    createdAt: "2026-05-08T11:22:00Z",
-    category: "Data",
-  },
-  {
-    id: "TKT-0038",
-    email: "kevin.dsouza@agency.co",
-    subject: "Email notifications not firing",
-    issue: "Automated email notifications for new signups stopped sending on May 6th. The event logs show the trigger fires correctly, but no emails arrive. Verified SMTP credentials are valid.",
-    priority: "high",
-    status: "in-progress",
-    createdAt: "2026-05-07T14:30:00Z",
-    category: "Email",
-  },
-  {
-    id: "TKT-0037",
-    email: "fatima.khan@retailbiz.in",
-    subject: "Dashboard charts not rendering on Safari",
-    issue: "All analytics charts on the dashboard appear blank when viewed in Safari 17+. Chrome and Firefox work correctly. The browser console shows a WebGL context error.",
-    priority: "medium",
-    status: "open",
-    createdAt: "2026-05-07T09:05:00Z",
-    category: "UI/UX",
-  },
-  {
-    id: "TKT-0036",
-    email: "rohit.verma@cloudfirm.com",
-    subject: "API rate limit too aggressive",
-    issue: "The current rate limit of 100 req/min is blocking our integration during peak hours. We need an increase to at least 500 req/min or a dedicated tier for enterprise clients.",
-    priority: "medium",
-    status: "resolved",
-    createdAt: "2026-05-06T16:18:00Z",
-    category: "API",
-  },
-  {
-    id: "TKT-0035",
-    email: "sunita.patel@logistics.net",
-    subject: "Wrong timezone shown in reports",
-    issue: "All timestamps in the monthly report are displayed in UTC instead of the user's local timezone (IST). The timezone setting in the profile is set correctly to Asia/Kolkata.",
-    priority: "medium",
-    status: "resolved",
-    createdAt: "2026-05-06T10:40:00Z",
-    category: "Reports",
-  },
-  {
-    id: "TKT-0034",
-    email: "james.wilson@globalco.io",
-    subject: "Request to add dark mode",
-    issue: "Many of our team members work late and would benefit from a dark mode option. Please consider adding it as a toggle in user preferences for a future release.",
-    priority: "low",
-    status: "closed",
-    createdAt: "2026-05-05T13:00:00Z",
-    category: "Feature Request",
-  },
-];
+
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; dot: string; badge: string }> = {
   critical: {
@@ -226,11 +145,31 @@ const ALL_STATUSES: Status[] = ["open", "in-progress", "resolved", "closed"];
 const ALL_PRIORITIES: Priority[] = ["critical", "high", "medium", "low"];
 
 export default function TicketsPage() {
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Status | "all">("all");
   const [priorityFilter, setPriorityFilter] = useState<Priority | "all">("all");
 
-  const filtered = TICKETS.filter((t) => {
+  useEffect(() => {
+    const fetchTickets = async () => {
+      try {
+        const response = await fetch('/api/tickets');
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+        const data = await response.json();
+        setTickets(data.tickets || []);
+      } catch (error) {
+        console.error('Error fetching tickets:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTickets();
+  }, []);
+
+  const filtered = tickets.filter((t) => {
     const q = search.toLowerCase();
     const matchSearch =
       !q ||
@@ -244,10 +183,10 @@ export default function TicketsPage() {
   });
 
   const counts = {
-    open: TICKETS.filter((t) => t.status === "open").length,
-    "in-progress": TICKETS.filter((t) => t.status === "in-progress").length,
-    resolved: TICKETS.filter((t) => t.status === "resolved").length,
-    closed: TICKETS.filter((t) => t.status === "closed").length,
+    open: tickets.filter((t) => t.status === "open").length,
+    "in-progress": tickets.filter((t) => t.status === "in-progress").length,
+    resolved: tickets.filter((t) => t.status === "resolved").length,
+    closed: tickets.filter((t) => t.status === "closed").length,
   };
 
   return (
@@ -262,15 +201,9 @@ export default function TicketsPage() {
           </div>
           <div>
             <h1 className="text-sm font-bold text-slate-800 leading-none">Support Tickets</h1>
-            <p className="text-xs text-slate-400 mt-0.5">{TICKETS.length} total tickets</p>
+            <p className="text-xs text-slate-400 mt-0.5">{tickets.length} total tickets</p>
           </div>
         </div>
-        <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors shadow-sm shadow-indigo-200">
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-          New Ticket
-        </button>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
@@ -324,7 +257,11 @@ export default function TicketsPage() {
         </div>
 
         {/* Cards grid */}
-        {filtered.length > 0 ? (
+        {loading ? (
+          <div className="flex justify-center py-24">
+            <div className="text-sm text-slate-500">Loading tickets...</div>
+          </div>
+        ) : filtered.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filtered.map((ticket) => (
               <TicketCard key={ticket.id} ticket={ticket} />
