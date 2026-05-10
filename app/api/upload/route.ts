@@ -121,14 +121,14 @@ export async function POST(request: Request) {
     await PineconeStore.fromDocuments(documents, embeddings, { pineconeIndex, namespace });
     console.log('Vector store insertion completed successfully');
 
-    // Store namespace in Firestore clients collection
+    // Store namespace and fileName in Firestore clients collection
     try {
       const clientRef = db.collection('clients').doc(userEmail);
       await clientRef.set({
-        namespaces: admin.firestore.FieldValue.arrayUnion(namespace),
+        namespaces: admin.firestore.FieldValue.arrayUnion({ namespace, fileName: file.name }),
         lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
       }, { merge: true });
-      console.log(`Namespace ${namespace} stored in Firestore for user ${userEmail}`);
+      console.log(`Namespace ${namespace} and fileName ${file.name} stored in Firestore for user ${userEmail}`);
     } catch (firestoreError) {
       console.error('Error storing namespace in Firestore:', firestoreError);
       // Don't fail the entire upload if Firestore fails
