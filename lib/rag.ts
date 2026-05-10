@@ -41,10 +41,10 @@ export async function getContext(userMessage: string, namespace: string) {
   try {
     const store = await getVectorStore();
     // Use the vector store to retrieve relevant context based on user message
-    const results = await store.similaritySearch(userMessage, 1, {
+    const results = await store.similaritySearch(userMessage, 2, {
       namespace: namespace,
     });
-    console.log("Top 1 chunk (preview):", results.map((doc) => doc.pageContent.substring(0, 50) + "..."));
+    console.log("Top 2 chunks (preview):", results.map((doc) => doc.pageContent.substring(0, 50) + "..."));
 
     if (results && results.length > 0) {
       const combinedContext = results.map((doc) => doc.pageContent).join('\n\n');

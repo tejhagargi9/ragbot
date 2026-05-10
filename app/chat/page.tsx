@@ -94,7 +94,7 @@ const INITIAL_MESSAGES: ChatMessageType[] = [
     id: 1,
     role: "assistant",
     content:
-      "Hello! I'm your Ticket Support Agent. Upload a PDF or describe your issue and I'll help you resolve it.",
+      "Hello! I'm your Ticket Support Agent. Please select a file from the dropdown above to start chatting about it.",
     time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
   },
 ];
@@ -103,8 +103,37 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessageType[]>(INITIAL_MESSAGES);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [files, setFiles] = useState<{ fileName: string; namespace: string }[]>([]);
+  const [currentNamespace, setCurrentNamespace] = useState<string>("");
+  const [showPopup, setShowPopup] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Fetch files on load
+  useEffect(() => {
+    const fetchFiles = async () => {
+      try {
+        const response = await fetch('/api/files');
+        if (response.ok) {
+          const data = await response.json();
+          setFiles(data.files);
+        } else {
+          console.error('Failed to fetch files');
+        }
+      } catch (error) {
+        console.error('Error fetching files:', error);
+      }
+    };
+    fetchFiles();
+  }, []);
+
+  // Load saved namespace
+  useEffect(() => {
+    const saved = localStorage.getItem('currentNamespace');
+    if (saved && files.some(f => f.namespace === saved)) {
+      setCurrentNamespace(saved);
+    }
+  }, [files]);
 
   // Auto-scroll to bottom on new message or typing indicator
   useEffect(() => {
@@ -115,7 +144,7 @@ export default function ChatPage() {
 
   const sendMessage = async () => {
     const text = input.trim();
-    if (!text || isTyping) return;
+    if (!text || isTyping || !currentNamespace) return;
 
     console.log(`[Chat Component] Sending message: ${text.substring(0, 100)}...`);
 
@@ -139,6 +168,7 @@ export default function ChatPage() {
             ...messages.map((m) => ({ role: m.role, content: m.content })),
             { role: "user", content: text },
           ],
+          currentNamespace,
         }),
       });
 
@@ -211,7 +241,7 @@ export default function ChatPage() {
       <div className="flex flex-col h-screen bg-[#f0f4fa] font-sans">
         {/* ── Navbar ── */}
         <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shadow-sm flex-shrink-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
                 <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
@@ -220,6 +250,21 @@ export default function ChatPage() {
             <span className="font-semibold text-slate-800 tracking-tight">
               Ticket Support Agent
             </span>
+            <select
+              value={currentNamespace}
+              onChange={(e) => {
+                setCurrentNamespace(e.target.value);
+                localStorage.setItem('currentNamespace', e.target.value);
+              }}
+              className="px-3 py-1.5 text-sm text-black border border-black rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select a file</option>
+              {files.map((file) => (
+                <option key={file.namespace} value={file.namespace}>
+                  {file.fileName}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="flex items-center gap-3">
@@ -260,6 +305,13 @@ export default function ChatPage() {
 
         {/* ── Input bar ── */}
         <footer className="bg-white border-t border-slate-200 px-4 py-3 md:px-8 lg:px-24 xl:px-40 flex-shrink-0">
+          {showPopup && (
+            <div className="mb-2 text-center">
+              <div className="inline-block px-3 py-1 bg-red-100 text-red-800 text-sm rounded-lg border border-red-200">
+                Please select a file first to interact with.
+              </div>
+            </div>
+          )}
           <div className="max-w-3xl mx-auto">
             <div className="flex items-end gap-2 bg-slate-50 border border-slate-300 rounded-2xl px-4 py-2 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all shadow-sm">
               {/* Attachment button */}
@@ -273,7 +325,13 @@ export default function ChatPage() {
               <textarea
                 ref={inputRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  if (e.target.value && !currentNamespace) {
+                    setShowPopup(true);
+                    setTimeout(() => setShowPopup(false), 3000);
+                  }
+                }}
                 onKeyDown={handleKeyDown}
                 placeholder="Type your message… (Enter to send)"
                 rows={1}
@@ -289,9 +347,9 @@ export default function ChatPage() {
               {/* Send button */}
               <button
                 onClick={sendMessage}
-                disabled={!input.trim() || isTyping}
+                disabled={!input.trim() || isTyping || !currentNamespace}
                 className={`mb-1 flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
-                  input.trim() && !isTyping
+                  input.trim() && !isTyping && currentNamespace
                     ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-blue-200 hover:scale-105 active:scale-95"
                     : "bg-slate-200 text-slate-400 cursor-not-allowed"
                 }`}

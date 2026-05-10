@@ -5,13 +5,18 @@ import { chatModel } from "../../../lib/llm";
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages } = await req.json();
+    const { messages, currentNamespace } = await req.json();
 
     console.log(`[Chat API] Received messages: ${messages.length} messages`);
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       console.error("[Chat API] Missing or invalid messages");
       return NextResponse.json({ error: "Missing messages" }, { status: 400 });
+    }
+
+    if (!currentNamespace) {
+      console.error("[Chat API] Missing currentNamespace");
+      return NextResponse.json({ error: "Missing currentNamespace" }, { status: 400 });
     }
 
     // Get session token from cookies
@@ -34,29 +39,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
-    console.log(`[Chat API] Fetching namespace for user: ${userEmail}`);
 
-    // Get user namespace from Firestore
-    const userDoc = await db.collection('clients').doc(userEmail).get();
-    if (!userDoc.exists) {
-      console.error(`[Chat API] User document not found for: ${userEmail}`);
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    const userData = userDoc.data();
-    const namespaces = userData?.namespaces;
-    if (!namespaces || !Array.isArray(namespaces) || namespaces.length === 0) {
-      console.error(`[Chat API] No namespaces found for user: ${userEmail}`);
-      return NextResponse.json({ error: "No namespaces found for user" }, { status: 400 });
-    }
-
-    const namespace = namespaces[0];
-    console.log(`[Chat API] Retrieved namespace: ${namespace} for user: ${userEmail}`);
 
     const userMessage = messages[messages.length - 1].content;
-    console.log(`[Chat API] Calling getContext with namespace: ${namespace} and userMessage: ${userMessage.substring(0, 100)}...`);
+    console.log(`[Chat API] Calling getContext with namespace: ${currentNamespace} and userMessage: ${userMessage.substring(0, 100)}...`);
 
-    const { contextSystemMsg } = await getContext(userMessage, namespace);
+    const { contextSystemMsg } = await getContext(userMessage, currentNamespace);
 
     console.log("[Chat API] Calling OpenAI LLM...");
 
@@ -90,7 +78,6 @@ export async function POST(req: NextRequest) {
       }
     } catch (e) {
       // Not JSON, use as is
-      console.log("[Chat API] LLM response is not JSON, using raw text, ERROR is : ", e);
     }
 
     // Normalize response to match Anthropic format for client compatibility
