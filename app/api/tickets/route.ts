@@ -15,7 +15,7 @@ interface Ticket {
 export async function GET(req: NextRequest) {
   try {
     // Get session token from cookies
-    const cookies = req.cookies;
+    const cookies = req.cookies;  
     const sessionToken = cookies.get('session')?.value;
 
     if (!sessionToken) {

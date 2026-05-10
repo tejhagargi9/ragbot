@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
       }
     } catch (e) {
       // Not JSON, use as is
+      console.log("[Chat API] LLM response is not JSON, using raw text, ERROR is : ", e);
     }
 
     // Normalize response to match Anthropic format for client compatibility
