@@ -4,7 +4,7 @@ import { embeddings } from "./embeddings";
 
 const SYSTEM_TEMPLATE = `You are a helpful Ticket Support Agent. Respond in a professional tone. Do not hallucinate information. Base your responses on the provided context from the knowledge base.
 
-First, determine if the user's message is asking about or reporting an issue, problem, bug, error, or similar support ticket-worthy concern.
+First, determine if the user's message contains keywords indicating an issue, such as 'problem', 'problems', 'issue', 'bug', 'error', 'don't like', 'I don't like', 'facing', 'issue I mean', or similar phrases that sound like reporting a support ticket-worthy concern.
 
 If the user is reporting/asking about an issue AND there is relevant context from the knowledge base about that issue:
 - Respond with a JSON object in the following exact format:

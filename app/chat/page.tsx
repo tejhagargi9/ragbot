@@ -121,19 +121,19 @@ export default function ChatPage() {
           console.error('Failed to fetch files');
         }
       } catch (error) {
-        console.error('Error fetching files:', error);
+        console.error('Error fetching files:', error);  
       }
     };
     fetchFiles();
   }, []);
 
-  // Load saved namespace
-  useEffect(() => {
-    const saved = localStorage.getItem('currentNamespace');
-    if (saved && files.some(f => f.namespace === saved)) {
-      setCurrentNamespace(saved);
-    }
-  }, [files]);
+  // // Load saved namespace
+  // useEffect(() => {
+  //   const saved = localStorage.getItem('currentNamespace');
+  //   if (saved && files.some(f => f.namespace === saved)) {
+  //     setCurrentNamespace(saved);
+  //   }
+  // }, [files]);
 
   // Auto-scroll to bottom on new message or typing indicator
   useEffect(() => {
