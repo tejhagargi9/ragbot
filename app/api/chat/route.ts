@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getContext } from "../../../lib/rag";
+import { cragGraph } from "../../../lib/crag";
+import { HumanMessage } from "@langchain/core/messages";
 import { admin, db } from "../../../lib/firebaseAdmin";
-import { chatModel } from "../../../lib/llm";
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,19 +42,14 @@ export async function POST(req: NextRequest) {
 
 
     const userMessage = messages[messages.length - 1].content;
-    console.log(`[Chat API] Calling getContext with namespace: ${currentNamespace} and userMessage: ${userMessage.substring(0, 100)}...`);
+    console.log(`[Chat API] Calling CRAG with namespace: ${currentNamespace}`);
 
-    const { contextSystemMsg } = await getContext(userMessage, currentNamespace);
-
-    console.log("[Chat API] Calling OpenAI LLM...");
-
-    const allMessages = [
-      { role: "system", content: contextSystemMsg.content },
-      ...messages
-    ];
-
-    const llmResponse = await chatModel.invoke(allMessages);
-    let replyText = llmResponse.content as string;
+    const result = await cragGraph.invoke({
+      question: userMessage,
+      namespace: currentNamespace,
+      messages: [new HumanMessage(userMessage)],
+    });
+    let replyText = result.answer || "";
 
     console.log(`[Chat API] LLM response length: ${replyText.length}`);
 
