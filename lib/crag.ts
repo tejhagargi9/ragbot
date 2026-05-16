@@ -7,6 +7,7 @@ import {
 import { ChatOpenAI } from "@langchain/openai";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { PineconeStore } from "@langchain/pinecone";
+import { TavilySearch } from "@langchain/tavily";
 import { embeddings } from "./embeddings";
 import { promptTemplate } from "./ragPrompt";
 
@@ -15,6 +16,8 @@ const model = new ChatOpenAI({
   temperature: 0,
   openAIApiKey: process.env.OPENAI_API_KEY,
 });
+
+const tavilyTool = new TavilySearch({ maxResults: 5 });
 
 let vectorStore: PineconeStore | null = null;
 
@@ -110,6 +113,16 @@ async function rewriteQuery(state: typeof CRAGState.State) {
   return { rewrittenQuestion: rewritten, retryCount: state.retryCount + 1 };
 }
 
+async function webFallback(state: typeof CRAGState.State) {
+  console.log("[CRAG] webFallback node started - using Tavily");
+  const results = await tavilyTool.invoke({ query: state.question });
+  const docs = Array.isArray(results)
+    ? results.map((r: any) => r.content || JSON.stringify(r))
+    : [typeof results === "string" ? results : JSON.stringify(results)];
+  console.log("[CRAG] webFallback got", docs, "web results");
+  return { documents: docs, retrievalGrade: "good" };
+}
+
 async function generateAnswer(state: typeof CRAGState.State) {
   console.log("[CRAG] generateAnswer node started");
   const combinedContext = state.documents.join("\n\n");
@@ -132,7 +145,9 @@ function shouldRetry(state: typeof CRAGState.State) {
     "retryCount:",
     state.retryCount,
   );
-  if (state.retryCount >= 2) return "generate";
+  if (state.retryCount >= 2) {
+    return state.retrievalGrade === "bad" ? "web_fallback" : "generate";
+  }
   if (state.retrievalGrade === "bad") return "rewrite_query";
   return "generate";
 }
@@ -142,13 +157,16 @@ export const cragGraph = new StateGraph(CRAGState)
   .addNode("retrieve", retrieve)
   .addNode("grade_documents", gradeDocuments)
   .addNode("rewrite_query", rewriteQuery)
+  .addNode("web_fallback", webFallback)
   .addNode("generate", generateAnswer)
   .addEdge("__start__", "retrieve")
   .addEdge("retrieve", "grade_documents")
   .addConditionalEdges("grade_documents", shouldRetry, {
     rewrite_query: "rewrite_query",
+    web_fallback: "web_fallback",
     generate: "generate",
   })
   .addEdge("rewrite_query", "retrieve")
+  .addEdge("web_fallback", "generate")
   .addEdge("generate", END)
   .compile();
