@@ -17,7 +17,10 @@ const model = new ChatOpenAI({
   openAIApiKey: process.env.OPENAI_API_KEY,
 });
 
-const tavilyTool = new TavilySearch({ maxResults: 5 });
+const tavilyTool = new TavilySearch({
+  maxResults: 5,
+  topic: "general",
+});
 
 let vectorStore: PineconeStore | null = null;
 
@@ -119,7 +122,7 @@ async function webFallback(state: typeof CRAGState.State) {
   const docs = Array.isArray(results)
     ? results.map((r: any) => r.content || JSON.stringify(r))
     : [typeof results === "string" ? results : JSON.stringify(results)];
-  console.log("[CRAG] webFallback got", docs, "web results");
+  console.log("[CRAG] webFallback got", docs.length, "web results");
   return { documents: docs, retrievalGrade: "good" };
 }
 
